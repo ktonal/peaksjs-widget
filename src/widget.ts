@@ -12,7 +12,62 @@ import {
     unpack_models,
     ViewList,
 } from "@jupyter-widgets/base";
-import Peaks, {PeaksOptions, Segment, PeaksInstance} from 'peaks.js';
+import Peaks, {PeaksOptions, PeaksInstance, CreateSegmentMarkerOptions} from 'peaks.js';
+import Konva from "konva";
+
+class CustomSegmentMarker {
+    protected _options: CreateSegmentMarkerOptions;
+    protected _handle: Konva.Rect;
+    protected _line: Konva.Line;
+    protected handleHeight: number;
+
+    constructor(options: CreateSegmentMarkerOptions) {
+        this._options = options;
+    }
+
+    init(group: Konva.Group) {
+        const handleWidth = 10;
+        this.handleHeight = 20;
+        const handleX = -(handleWidth / 2) + 0.5; // Place in the middle of the marker
+
+        this._handle = new Konva.Rect({
+            x: handleX,
+            y: 0,
+            width: handleWidth,
+            height: this.handleHeight,
+            fill: this._options.color as string
+        });
+
+        this._line = new Konva.Line({
+            stroke: this._options.color as string,
+            strokeWidth: 1
+        });
+
+        group.add(this._handle);
+        group.add(this._line);
+
+        this.fitToView();
+    }
+
+    fitToView() {
+        const layer = this._options.layer;
+        const height = layer.getHeight();
+        this._handle.y(height / 2 - this.handleHeight / 2);
+        this._line.points([0.5, 0, 0.5, height]);
+    }
+
+    timeUpdated() {
+        // (optional, see below)
+    }
+
+    destroy() {
+        // (optional, see below)
+    }
+}
+
+function newSegmentMarker(options: CreateSegmentMarkerOptions) {
+    return new CustomSegmentMarker(options);
+}
 
 export class PeaksJSModel extends DOMWidgetModel {
 
@@ -35,7 +90,7 @@ export class PeaksJSModel extends DOMWidgetModel {
         ...DOMWidgetModel.serializers
     };
 
-    static state_change: Promise<any>;
+    // static state_change: Promise<any>;
 
     static model_name = 'PeaksJSModel';
     static model_module = MODULE_NAME;
@@ -45,14 +100,14 @@ export class PeaksJSModel extends DOMWidgetModel {
     static view_module_version = MODULE_VERSION;
 }
 
-function segmentsToObjects(segments: Segment[]) {
-    return segments.map(s => {
-        return {
-            startTime: s.startTime, endTime: s.endTime, color: s.color,
-            editable: s.editable, labelText: s.labelText
-        }
-    })
-}
+// function segmentsToObjects(segments: Segment[]) {
+//     return segments.map(s => {
+//         return {
+//             startTime: s.startTime, endTime: s.endTime, color: s.color,
+//             editable: s.editable, labelText: s.labelText, id: s.id
+//         }
+//     })
+// }
 
 export class PeaksJSView extends DOMWidgetView {
     peaks: PeaksInstance;
@@ -62,34 +117,18 @@ export class PeaksJSView extends DOMWidgetView {
     overview: JQuery;
     playBtn: JQuery;
 
-    initialize() {
-        super.initialize(this);
-        this.views = new ViewList(this.add_view, null, this);
-        this.options = {};
-        const _this = this;
-        this.listenTo(this.model, "change:audio", (model, value) => {
-            _this.views.update(value).then(r => console.log("THEN:", r));
-            // @ts-ignore
-        });
-        this.displayed.then(() => {
-            _this.init_peaks();
-        })
-    }
-
     add_view(child_model: DOMWidgetModel, index: number) {
         console.log("CHILD:", child_model);
         return this.create_child_view(child_model, {parent: this})
             .then(view => view)
             .catch(err => {
-                console.log("...... err ......")
+                console.log("...... err ......");
                 return err
             });
     }
 
     segments_changed() {
-        const selected = this.model.get("selected");
-        const segments = this.model.get("segments")
-            .filter((s: Segment, i: number) => selected.includes(i));
+        let segments = this.model.get("segments");
         this.peaks.segments.removeAll();
         this.peaks.segments.add(segments);
     }
@@ -115,6 +154,7 @@ export class PeaksJSView extends DOMWidgetView {
             const audioElement = a.el as HTMLMediaElement;
             $(that.el).append(audioElement);
             that.audio = audioElement;
+            // @ts-ignore
             const options: PeaksOptions = {
                 zoomview: {
                     container: zoomview,
@@ -142,7 +182,9 @@ export class PeaksJSView extends DOMWidgetView {
 
                 // Keyboard nudge increment in seconds (left arrow/right arrow)
                 nudgeIncrement: 1.,
-                segments: segments
+                segments: segments,
+                // @ts-ignore
+                createSegmentMarker: newSegmentMarker,
             };
             Peaks.init(options, function (err, peaks) {
                 if (err || peaks === undefined || peaks === null) {
@@ -152,58 +194,90 @@ export class PeaksJSView extends DOMWidgetView {
                 that.peaks = peaks;
                 const peaksZoomView = peaks.views.getView('zoomview')!;
                 peaksZoomView.setZoom({seconds: Math.min(audioElement.duration, 180.)});
-//                     peaks.views.getView('zoomview').enableSegmentDragging(true);
-//                     peaks.views.getView('zoomview').setSegmentDragMode('compress');
+                /*
+                * alt + click: add segment
+                * alt + SHIFT + click: remove segment
+                * Ctrl + click: edit segment's label
+                * Ctrl + wheel: zoom
+                * Ctr + dbl-click: reset zoom
+                * SHIFT + wheel: scroll wvaveform
+                * */
                 peaks.on("zoomview.click", (event) => {
-                    console.log("zoomview-click", event);
                     if (event.evt.altKey && !event.evt.shiftKey) {
-                        const newIndex = that.model.get("segments").length;
-                        that.model.set("selected", [...that.model.get("selected"), newIndex]);
-                        that.model.set("segments",
-                            [...that.model.get("segments"),
-                                {
-                                    startTime: event.time,
-                                    endTime: event.time + .1,
-                                    editable: true,
-                                }]);
+                        const newSegment = {
+                            startTime: event.time,
+                            endTime: event.time + .1,
+                            editable: true,
+                            id: that.model.get("id_count"),
+                            color: "#ff640e",
+                            labelText: ''
+                        };
+                        peaks.segments.add(newSegment);
+                        that.model.set("id_count", newSegment.id + 1);
                         that.touch();
+                        // that.model.set("segments",
+                        //     [...that.model.get("segments"),
+                        //         newSegment], {updated_view: that});
+                        // that.touch();
+                        // that.model.save_changes();
+                        that.send({newSegment: newSegment});
                     }
-                    zoomview.focus()
-//                         that.bm.focus()
+                    // zoomview.focus();
                 });
                 peaks.on("segments.click", (event) => {
                     console.log("segment-click", event);
 
                     if (event.evt.altKey && event.evt.shiftKey) {
-                        const segmentIndex = peaks.segments.getSegments().map(s => s.id).indexOf(event.segment.id);
-                        const newSelected = that.model.get("selected")
-                            .filter((s: number, i: number) => {
-                                return i != segmentIndex;
-                            })
-                            .map((i: number) => i > segmentIndex ? i - 1 : i);
                         peaks.segments.removeById(<string>event.segment.id);
-                        that.model.set("selected", [...newSelected]);
-                        that.touch();
-                        that.model.set("segments", [...segmentsToObjects(peaks.segments.getSegments())]);
-                        that.touch()
+                        // that.model.set("segments", [...segmentsToObjects(peaks.segments.getSegments())],
+                        //     {updated_view: that});
+                        // that.model.save_changes();
+                        // that.touch();
+                        that.send({
+                            removeSegment: {
+                                startTime: event.segment.startTime,
+                                endTime: event.segment.endTime,
+                                id: event.segment.id,
+                                color: event.segment.color,
+                                labelText: event.segment.labelText
+                            }
+                        })
 
-
-                    } else if (event.evt.metaKey) {
+                    } else if (event.evt.ctrlKey) {
                         const i = prompt("Enter cluster index", "0") as string;
                         event.segment.update({labelText: i});
-                        that.model.set("segments", [...segmentsToObjects(peaks.segments.getSegments())]);
-                        that.touch()
+                        // that.model.set("segments", [...segmentsToObjects(peaks.segments.getSegments())]);
+                        // that.touch();
+                        that.send({
+                            editSegment: {
+                                startTime: event.segment.startTime,
+                                endTime: event.segment.endTime,
+                                id: event.segment.id,
+                                color: event.segment.color,
+                                labelText: i,
+                                editable: true
+                            }
+                        })
                     }
-                    that.playBtn.trigger("focus");
+                    // that.playBtn.trigger("focus");
                 });
                 peaks.on("segments.dragend", (event) => {
-                    that.model.set("segments", [...segmentsToObjects(peaks.segments.getSegments())]);
-                    that.touch()
-//                         that.bm.focus()
+                    // that.model.set("segments", [...segmentsToObjects(peaks.segments.getSegments())]);
+                    // that.touch();
+                    // console.log("_---->", event.segment);
+                    that.send({
+                        editSegment: {
+                            startTime: event.segment.startTime,
+                            endTime: event.segment.endTime,
+                            id: event.segment.id,
+                            color: event.segment.color,
+                            labelText: event.segment.labelText,
+                            editable: true
+                        }
+                    });
                 });
                 peaks.on("player.seeked", (event) => {
                     console.log("player-seeked", event)
-//                         that.bm.focus()
                 });
 
                 zoomview.addEventListener("keydown", (e) => {
@@ -229,22 +303,23 @@ export class PeaksJSView extends DOMWidgetView {
 
                 zoomview.addEventListener("wheel", (event) => {
                     const zoomview = peaks.views.getView('zoomview');
-
                     if (!zoomview) return;
 
-                    if (event.shiftKey && event.altKey) {
+                    if (event.ctrlKey) {
                         // @ts-ignore
-                        const maxScale = zoomview._getScale(Math.min(peaks.player.getDuration(), 180.));
-
+                        const startTime = zoomview.getStartTime();
+                        // @ts-ignore
+                        const endTime = zoomview.getEndTime();
+                        // @ts-ignore
+                        const newDuration = (endTime - startTime) * (event.wheelDelta > 0 ? 1.1 : .9);
                         zoomview.setZoom({
-                            // @ts-ignore
-                            scale: Math.max(Math.min(zoomview._scale * (event.wheelDelta > 0 ? 1.1 : .9), maxScale), 8),
+                            seconds: Math.max(newDuration, 0.356)
                         });
                         event.preventDefault();
                     }
                 });
                 zoomview.addEventListener("dblclick", (event) => {
-                    if (event.altKey && event.shiftKey) {
+                    if (event.ctrlKey) {
                         peaks.views.getView('zoomview')!.setZoom({seconds: peaks.player.getDuration()})
                     } else if (!event.altKey) {
                         that.playBtn.trigger("click");
@@ -258,14 +333,22 @@ export class PeaksJSView extends DOMWidgetView {
         const model = this.model;
         const that = this;
 
-        this.views.update(this.model.get("audio")).then(r => r);
-
         this.model.on("change:audio", this.init_peaks, this);
         this.model.on("change:segments", this.segments_changed, this);
         this.model.on("change:playing", this.toggle_playing, this);
-        this.model.on("change:selected", this.segments_changed, this);
-
-        super.render();
+        this.views = new ViewList(this.add_view, null, this);
+        const _this = this;
+        this.listenTo(this.model, "change:audio", (model, value) => {
+            _this.views.update(value).then(r => console.log("THEN:", r));
+            // @ts-ignore
+        });
+        this.listenTo(this.model, "change:segments", this.segments_changed);
+        this.displayed.then(() => {
+            _this.init_peaks();
+            _this.send({init: "INIT"})
+        });
+        this.views.update(this.model.get("audio")).then(r => r);
+        // super.render();
         const elementId = this.model.get("element_id");
         $(this.el).attr("id", elementId);
 
@@ -287,7 +370,9 @@ export class PeaksJSView extends DOMWidgetView {
             .on("click", function () {
                 const playing = model.get('playing');
                 model.set('playing', !playing);
+                that.model.save_changes();
                 that.touch();
+                that.send({playing: "click"});
             });
 
         $((this.el)).append(this.zoomview).append(this.overview).append(this.playBtn);
