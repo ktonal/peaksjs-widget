@@ -117,31 +117,53 @@ export class PeaksJSView extends DOMWidgetView {
     overview: JQuery;
     playBtn: JQuery;
 
-    add_view(child_model: DOMWidgetModel, index: number) {
-        console.log("CHILD:", child_model);
-        return this.create_child_view(child_model, {parent: this})
-            .then(view => view)
-            .catch(err => {
-                console.log("...... err ......");
-                return err
+    render() {
+        const model = this.model;
+        const that = this;
+
+        this.model.on("change:audio", this.init_peaks, this);
+        this.model.on("change:segments", this.segments_changed, this);
+        this.model.on("change:playing", this.toggle_playing, this);
+        this.views = new ViewList(this.add_view, null, this);
+        const _this = this;
+        this.listenTo(this.model, "change:audio", (model, value) => {
+            _this.views.update(value).then(r => console.log("THEN:", r));
+            // @ts-ignore
+        });
+        this.listenTo(this.model, "change:segments", this.segments_changed);
+        this.displayed.then(() => {
+            _this.init_peaks();
+            _this.send({init: "INIT"})
+        });
+        this.views.update(this.model.get("audio")).then(r => r);
+        // super.render();
+        const elementId = this.model.get("element_id");
+        $(this.el).attr("id", elementId);
+
+        this.zoomview = $("<div>")
+            .text("\n")
+            .attr("id", "zoomview-" + elementId)
+            .attr("tabindex", "0")
+            .css({width: '100%', height: '200px', 'white-space': 'pre'});
+
+        this.overview = $("<div>")
+            .text("\n")
+            .attr("id", "overview-" + elementId)
+            .css({width: '100%', height: '15px', 'white-space': 'pre'});
+
+        // play button
+        this.playBtn = $('<button class="fa fa-play lm-widget p-widget jupyter-widgets jupyter-button widget-button"/>')
+            .text(' ')
+            .css({margin: "8px auto", width: '100%', height: '30px'})
+            .on("click", function () {
+                const playing = model.get('playing');
+                model.set('playing', !playing);
+                that.model.save_changes();
+                that.touch();
+                that.send({playing: "click"});
             });
-    }
 
-    segments_changed() {
-        let segments = this.model.get("segments");
-        this.peaks.segments.removeAll();
-        this.peaks.segments.add(segments);
-    }
-
-    toggle_playing() {
-        const playing = this.model.get("playing");
-        if (playing) {
-            this.peaks.player.play();
-            this.playBtn.removeClass("fa-play").addClass("fa-pause");
-        } else {
-            this.peaks.player.pause();
-            this.playBtn.removeClass("fa-pause").addClass("fa fa-play");
-        }
+        $((this.el)).append(this.zoomview).append(this.overview).append(this.playBtn);
     }
 
     init_peaks() {
@@ -222,17 +244,12 @@ export class PeaksJSView extends DOMWidgetView {
                         // that.model.save_changes();
                         that.send({newSegment: newSegment});
                     }
-                    // zoomview.focus();
                 });
                 peaks.on("segments.click", (event) => {
                     console.log("segment-click", event);
 
                     if (event.evt.altKey && event.evt.shiftKey) {
                         peaks.segments.removeById(<string>event.segment.id);
-                        // that.model.set("segments", [...segmentsToObjects(peaks.segments.getSegments())],
-                        //     {updated_view: that});
-                        // that.model.save_changes();
-                        // that.touch();
                         that.send({
                             removeSegment: {
                                 startTime: event.segment.startTime,
@@ -246,8 +263,6 @@ export class PeaksJSView extends DOMWidgetView {
                     } else if (event.evt.ctrlKey) {
                         const i = prompt("Enter cluster index", "0") as string;
                         event.segment.update({labelText: i});
-                        // that.model.set("segments", [...segmentsToObjects(peaks.segments.getSegments())]);
-                        // that.touch();
                         that.send({
                             editSegment: {
                                 startTime: event.segment.startTime,
@@ -258,13 +273,20 @@ export class PeaksJSView extends DOMWidgetView {
                                 editable: true
                             }
                         })
+                    } else {
+                        that.send({
+                            clickSegment: {
+                                startTime: event.segment.startTime,
+                                endTime: event.segment.endTime,
+                                id: event.segment.id,
+                                color: event.segment.color,
+                                labelText: event.segment.labelText,
+                                editable: event.segment.editable
+                            }
+                        })
                     }
-                    // that.playBtn.trigger("focus");
                 });
                 peaks.on("segments.dragend", (event) => {
-                    // that.model.set("segments", [...segmentsToObjects(peaks.segments.getSegments())]);
-                    // that.touch();
-                    // console.log("_---->", event.segment);
                     that.send({
                         editSegment: {
                             startTime: event.segment.startTime,
@@ -316,6 +338,10 @@ export class PeaksJSView extends DOMWidgetView {
                             seconds: Math.max(newDuration, 0.356)
                         });
                         event.preventDefault();
+                        that.send({
+                            // @ts-ignore
+                            updateZoomView: {startTime: zoomview.getStartTime(), endTime: zoomview.getEndTime()}
+                        })
                     }
                 });
                 zoomview.addEventListener("dblclick", (event) => {
@@ -329,52 +355,28 @@ export class PeaksJSView extends DOMWidgetView {
         })
     }
 
-    render() {
-        const model = this.model;
-        const that = this;
-
-        this.model.on("change:audio", this.init_peaks, this);
-        this.model.on("change:segments", this.segments_changed, this);
-        this.model.on("change:playing", this.toggle_playing, this);
-        this.views = new ViewList(this.add_view, null, this);
-        const _this = this;
-        this.listenTo(this.model, "change:audio", (model, value) => {
-            _this.views.update(value).then(r => console.log("THEN:", r));
-            // @ts-ignore
-        });
-        this.listenTo(this.model, "change:segments", this.segments_changed);
-        this.displayed.then(() => {
-            _this.init_peaks();
-            _this.send({init: "INIT"})
-        });
-        this.views.update(this.model.get("audio")).then(r => r);
-        // super.render();
-        const elementId = this.model.get("element_id");
-        $(this.el).attr("id", elementId);
-
-        this.zoomview = $("<div>")
-            .text("\n")
-            .attr("id", "zoomview-" + elementId)
-            .attr("tabindex", "0")
-            .css({width: '100%', height: '200px', 'white-space': 'pre'});
-
-        this.overview = $("<div>")
-            .text("\n")
-            .attr("id", "overview-" + elementId)
-            .css({width: '100%', height: '15px', 'white-space': 'pre'});
-
-        // play button
-        this.playBtn = $('<button class="fa fa-play lm-widget p-widget jupyter-widgets jupyter-button widget-button"/>')
-            .text(' ')
-            .css({margin: "8px auto", width: '100%', height: '30px'})
-            .on("click", function () {
-                const playing = model.get('playing');
-                model.set('playing', !playing);
-                that.model.save_changes();
-                that.touch();
-                that.send({playing: "click"});
+    add_view(child_model: DOMWidgetModel, index: number) {
+        return this.create_child_view(child_model, {parent: this})
+            .then(view => view)
+            .catch(err => {
+                return err
             });
+    }
 
-        $((this.el)).append(this.zoomview).append(this.overview).append(this.playBtn);
+    segments_changed() {
+        let segments = this.model.get("segments");
+        this.peaks.segments.removeAll();
+        this.peaks.segments.add(segments);
+    }
+
+    toggle_playing() {
+        const playing = this.model.get("playing");
+        if (playing) {
+            this.peaks.player.play();
+            this.playBtn.removeClass("fa-play").addClass("fa-pause");
+        } else {
+            this.peaks.player.pause();
+            this.playBtn.removeClass("fa-pause").addClass("fa fa-play");
+        }
     }
 }
