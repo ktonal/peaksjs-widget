@@ -8,7 +8,7 @@
 TODO: Add module docstring
 """
 
-from ipywidgets import DOMWidget, Widget, widget_serialization, Audio, Layout, CallbackDispatcher, register
+from ipywidgets import DOMWidget, HTML, widget_serialization, Audio, CallbackDispatcher, register, Button
 from ipywidgets.widgets.trait_types import InstanceDict
 from traitlets import Unicode, Int, Dict, List, Bool, Instance
 from ._frontend import module_name, module_version
@@ -38,26 +38,67 @@ class PeaksJSWidget(DOMWidget):
     _view_name = Unicode('PeaksJSView').tag(sync=True)
     _view_module = Unicode(module_name).tag(sync=True)
     _view_module_version = Unicode(module_version).tag(sync=True)
-    audio = List(Instance(Widget)).tag(sync=True, **widget_serialization)
     element_id = Unicode().tag(sync=True)
     segments = List(Dict()).tag(sync=True)
     playing = Bool().tag(sync=True)
     id_count = Int().tag(sync=True)
-    layout = InstanceDict(Layout).tag(sync=True, **widget_serialization)
+    zoomview = InstanceDict(DOMWidget).tag(sync=True, **widget_serialization)
+    overview = InstanceDict(DOMWidget).tag(sync=True, **widget_serialization)
+    play_button = InstanceDict(Button).tag(sync=True, **widget_serialization)
+    audio = Instance(Audio).tag(sync=True, **widget_serialization)
+    as_container = Bool().tag(sync=True)
 
     def __init__(self,
-                 array,
-                 sr,
-                 id_count=id_count,
-                 segments=[]):
-        value = to_mp3_buffer(array, sr)
-        audio = [Audio(value=value, format="mp3", autoplay=False,
-                       loop=False, controls=False)]
-        super().__init__(audio=audio,
-                         element_id="audio_456",
+                 value=None,
+                 array=None,
+                 sr=None,
+                 filename=None,
+                 format=None,
+                 autoplay=False,
+                 loop=False,
+                 controls=False,
+                 element_id=None,
+                 zoomview=None,
+                 overview=None,
+                 play_button=None,
+                 id_count=0,
+                 segments=None,
+                 as_container=True
+                 ):
+        if value is None:
+            if array is not None and sr is not None:
+                value = to_mp3_buffer(array, sr)
+                audio = Audio(value=value, format="mp3", autoplay=False,
+                              loop=False, controls=False)
+            elif filename is not None and format is not None:
+                audio = Audio(filename=filename, format=format, autoplay=autoplay,
+                              loop=loop, controls=controls)
+            else:
+                raise ValueError("either 'array' and 'sr', or 'filename' and 'format' should be both not None.")
+        else:
+            audio = Audio(value=value, format=format, autoplay=autoplay, loop=loop,
+                          controls=controls)
+        if zoomview is None:
+            zoomview = HTML(value="<div></div>")
+        if overview is None:
+            overview = HTML(value="<div></div>")
+        if play_button is None:
+            play_button = Button(
+                icon="fa-play",
+                layout=dict(margin='8px auto', width='100%', height='30px')
+            )
+        if segments is None:
+            segments = []
+
+        super().__init__(element_id=element_id if element_id is not None else '',
                          id_count=id_count,
                          segments=segments,
                          playing=False,
+                         zoomview=zoomview,
+                         overview=overview,
+                         play_button=play_button,
+                         audio=audio,
+                         as_container=as_container
                          )
         self.audio = audio
         self._add_segment_cb = CallbackDispatcher()
@@ -73,7 +114,6 @@ class PeaksJSWidget(DOMWidget):
         content: dict
             Content of the msg.
         """
-        print("got", list(content.keys()))
         if "newSegment" in content:
             self._add_segment_cb(self, content["newSegment"])
         if "editSegment" in content:
@@ -91,4 +131,3 @@ class PeaksJSWidget(DOMWidget):
 
     def on_remove_segment(self, func):
         self._remove_segment_cb.register_callback(func, False)
-

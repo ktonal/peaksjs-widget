@@ -80,13 +80,14 @@ export class PeaksJSModel extends DOMWidgetModel {
             _view_name: PeaksJSModel.view_name,
             _view_module: PeaksJSModel.view_module,
             _view_module_version: PeaksJSModel.view_module_version,
-            audio: [],
         };
     }
 
     static serializers: ISerializers = {
+        zoomview: {deserialize: unpack_models},
+        overview: {deserialize: unpack_models},
+        play_button: {deserialize: unpack_models},
         audio: {deserialize: unpack_models},
-        layout: {deserialize: unpack_models},
         ...DOMWidgetModel.serializers
     };
 
@@ -100,15 +101,6 @@ export class PeaksJSModel extends DOMWidgetModel {
     static view_module_version = MODULE_VERSION;
 }
 
-// function segmentsToObjects(segments: Segment[]) {
-//     return segments.map(s => {
-//         return {
-//             startTime: s.startTime, endTime: s.endTime, color: s.color,
-//             editable: s.editable, labelText: s.labelText, id: s.id
-//         }
-//     })
-// }
-
 export class PeaksJSView extends DOMWidgetView {
     peaks: PeaksInstance;
     views: ViewList<DOMWidgetView>;
@@ -118,62 +110,103 @@ export class PeaksJSView extends DOMWidgetView {
     playBtn: JQuery;
 
     render() {
-        const model = this.model;
-        const that = this;
-
+        super.render();
+        this.model.on("change:zoomview", this.init_zoomview, this);
+        this.model.on("change:overview", this.init_overview, this);
+        this.model.on("change:play_button", this.init_play_button, this);
         this.model.on("change:audio", this.init_peaks, this);
         this.model.on("change:segments", this.segments_changed, this);
         this.model.on("change:playing", this.toggle_playing, this);
         this.views = new ViewList(this.add_view, null, this);
         const _this = this;
+        this.listenTo(this.model, "change:zoomview", (model, value) => {
+            _this.views.update([value,]);
+        });
+        this.listenTo(this.model, "change:overview", (model, value) => {
+            _this.views.update([value,]);
+        });
+        this.listenTo(this.model, "change:play_button", (model, value) => {
+            _this.views.update([value,]);
+        });
         this.listenTo(this.model, "change:audio", (model, value) => {
-            _this.views.update(value).then(r => console.log("THEN:", r));
-            // @ts-ignore
+            _this.views.update([value,]);
         });
         this.listenTo(this.model, "change:segments", this.segments_changed);
         this.displayed.then(() => {
+            _this.init_zoomview();
+            _this.init_overview();
+            _this.init_play_button();
             _this.init_peaks();
-            _this.send({init: "INIT"})
         });
-        this.views.update(this.model.get("audio")).then(r => r);
-        // super.render();
+        this.views.update(
+            [
+                this.model.get("zoomview"),
+                this.model.get("overview"),
+                this.model.get("play_button"),
+                this.model.get("audio")
+            ]).then(r => r);
         const elementId = this.model.get("element_id");
         $(this.el).attr("id", elementId);
+    }
 
-        this.zoomview = $("<div>")
-            .text("\n")
-            .attr("id", "zoomview-" + elementId)
-            .attr("tabindex", "0")
-            .css({width: '100%', height: '200px', 'white-space': 'pre'});
-
-        this.overview = $("<div>")
-            .text("\n")
-            .attr("id", "overview-" + elementId)
-            .css({width: '100%', height: '15px', 'white-space': 'pre'});
-
-        // play button
-        this.playBtn = $('<button class="fa fa-play lm-widget p-widget jupyter-widgets jupyter-button widget-button"/>')
-            .text(' ')
-            .css({margin: "8px auto", width: '100%', height: '30px'})
-            .on("click", function () {
-                const playing = model.get('playing');
-                model.set('playing', !playing);
-                that.model.save_changes();
-                that.touch();
-                that.send({playing: "click"});
+    add_view(child_model: DOMWidgetModel, index: number) {
+        return this.create_child_view(child_model, {parent: this})
+            .then(view => {view.render(); return view;})
+            .catch(err => {
+                return err
             });
+    }
 
-        $((this.el)).append(this.zoomview).append(this.overview).append(this.playBtn);
+    init_zoomview() {
+        const that = this;
+        const elementId = this.model.get("element_id");
+        this.views.views[0].then(v => {
+            that.zoomview = $(v.el)
+                .text("\n")
+                .attr("id", "zoomview-" + elementId)
+                .attr("tabindex", "0")
+                .css({width: '100%', height: '200px', 'white-space': 'pre'});
+            if (that.model.get("as_container"))  $(that.el).append(that.zoomview);
+        });
+    }
+
+    init_overview() {
+        const that = this;
+        const elementId = this.model.get("element_id");
+        this.views.views[1].then(v => {
+            that.overview = $(v.el)
+                .text("\n")
+                .attr("id", "overview-" + elementId)
+                .css({width: '100%', height: '15px', 'white-space': 'pre'});
+            if (that.model.get("as_container"))  $(that.el).append(that.overview);
+        });
+    }
+
+    init_play_button() {
+        const model = this.model;
+        const that = this;
+        this.views.views[2].then(v => {
+            this.playBtn = $(v.el)
+                .on("click", function () {
+                    const playing = model.get('playing');
+                    model.set('playing', !playing);
+                    model.save_changes();
+                    that.touch();
+                    that.send({playing: !playing});
+                });
+            if (that.model.get("as_container"))  $((this.el)).append(this.playBtn);
+        })
     }
 
     init_peaks() {
         const that = this;
         const audioContext = new AudioContext();
         const segments = this.model.get("segments");
-        const zoomview = $(this.zoomview)[0];
-        const overview = $(this.overview)[0];
-        this.views.views[0].then(a => {
+        Promise.all(this.views.views).then(v => {
+            const a = v[3];
             const audioElement = a.el as HTMLMediaElement;
+            const zoomview = v[0].el;
+            const overview = v[1].el;
             $(that.el).append(audioElement);
             that.audio = audioElement;
             // @ts-ignore
@@ -237,11 +270,6 @@ export class PeaksJSView extends DOMWidgetView {
                         peaks.segments.add(newSegment);
                         that.model.set("id_count", newSegment.id + 1);
                         that.touch();
-                        // that.model.set("segments",
-                        //     [...that.model.get("segments"),
-                        //         newSegment], {updated_view: that});
-                        // that.touch();
-                        // that.model.save_changes();
                         that.send({newSegment: newSegment});
                     }
                 });
@@ -335,13 +363,14 @@ export class PeaksJSView extends DOMWidgetView {
                         // @ts-ignore
                         const newDuration = (endTime - startTime) * (event.wheelDelta > 0 ? 1.1 : .9);
                         zoomview.setZoom({
-                            seconds: Math.max(newDuration, 0.356)
+                            seconds: Math.min(audioElement.duration,
+                                Math.max(newDuration, 0.356))
                         });
                         event.preventDefault();
-                        that.send({
-                            // @ts-ignore
-                            updateZoomView: {startTime: zoomview.getStartTime(), endTime: zoomview.getEndTime()}
-                        })
+                    that.send({
+                        // @ts-ignore
+                        updateZoomView: {startTime: zoomview.getStartTime(), endTime: zoomview.getEndTime()}
+                    })
                     }
                 });
                 zoomview.addEventListener("dblclick", (event) => {
@@ -353,14 +382,6 @@ export class PeaksJSView extends DOMWidgetView {
                 })
             });
         })
-    }
-
-    add_view(child_model: DOMWidgetModel, index: number) {
-        return this.create_child_view(child_model, {parent: this})
-            .then(view => view)
-            .catch(err => {
-                return err
-            });
     }
 
     segments_changed() {
