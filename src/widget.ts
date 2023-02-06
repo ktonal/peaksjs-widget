@@ -397,7 +397,7 @@ export class PeaksJSView extends DOMWidgetView {
             this.playBtn.removeClass("fa-play").addClass("fa-pause");
         } else {
             this.peaks.player.pause();
-            this.playBtn.removeClass("fa-pause").addClass("fa fa-play");
+            this.playBtn.removeClass("fa-pause").addClass("fa-play");
         }
     }
 }

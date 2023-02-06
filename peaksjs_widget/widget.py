@@ -44,7 +44,7 @@ class PeaksJSWidget(DOMWidget):
     id_count = Int().tag(sync=True)
     zoomview = InstanceDict(DOMWidget).tag(sync=True, **widget_serialization)
     overview = InstanceDict(DOMWidget).tag(sync=True, **widget_serialization)
-    play_button = InstanceDict(Button).tag(sync=True, **widget_serialization)
+    play_button = InstanceDict(DOMWidget).tag(sync=True, **widget_serialization)
     audio = Instance(Audio).tag(sync=True, **widget_serialization)
     as_container = Bool().tag(sync=True)
 
@@ -83,10 +83,9 @@ class PeaksJSWidget(DOMWidget):
         if overview is None:
             overview = HTML(value="<div></div>")
         if play_button is None:
-            play_button = Button(
-                icon="fa-play",
-                layout=dict(margin='8px auto', width='100%', height='30px')
-            )
+            play_button = HTML("""
+            <i class='fa fa-play'
+               style="margin='8px auto'; width=100%; height=30px"></i>""")
         if segments is None:
             segments = []
 
