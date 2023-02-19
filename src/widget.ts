@@ -87,11 +87,10 @@ export class PeaksJSModel extends DOMWidgetModel {
         zoomview: {deserialize: unpack_models},
         overview: {deserialize: unpack_models},
         play_button: {deserialize: unpack_models},
+        save_button: {deserialize: unpack_models},
         audio: {deserialize: unpack_models},
         ...DOMWidgetModel.serializers
     };
-
-    // static state_change: Promise<any>;
 
     static model_name = 'PeaksJSModel';
     static model_module = MODULE_NAME;
@@ -114,28 +113,33 @@ export class PeaksJSView extends DOMWidgetView {
         this.model.on("change:zoomview", this.init_zoomview, this);
         this.model.on("change:overview", this.init_overview, this);
         this.model.on("change:play_button", this.init_play_button, this);
+        this.model.on("change:save_button", this.init_save_button, this);
         this.model.on("change:audio", this.init_peaks, this);
         this.model.on("change:segments", this.segments_changed, this);
+        this.model.on("change:points", this.points_changed, this);
         this.model.on("change:playing", this.toggle_playing, this);
         this.views = new ViewList(this.add_view, null, this);
         const _this = this;
-        this.listenTo(this.model, "change:zoomview", (model, value) => {
-            _this.views.update([value,]);
-        });
-        this.listenTo(this.model, "change:overview", (model, value) => {
-            _this.views.update([value,]);
-        });
-        this.listenTo(this.model, "change:play_button", (model, value) => {
-            _this.views.update([value,]);
-        });
-        this.listenTo(this.model, "change:audio", (model, value) => {
-            _this.views.update([value,]);
-        });
+        // this.listenTo(this.model, "change:zoomview", (model, value) => {
+        //     _this.views.update([value,]);
+        // });
+        // this.listenTo(this.model, "change:overview", (model, value) => {
+        //     _this.views.update([value,]);
+        // });
+        // this.listenTo(this.model, "change:play_button", (model, value) => {
+        //     _this.views.update([value,]);
+        // });
+        // this.listenTo(this.model, "change:audio", (model, value) => {
+        //     _this.views.update([value,]);
+        // });
         this.listenTo(this.model, "change:segments", this.segments_changed);
+        this.listenTo(this.model, "change:points", this.points_changed);
+
         this.displayed.then(() => {
             _this.init_zoomview();
             _this.init_overview();
             _this.init_play_button();
+            _this.init_save_button();
             _this.init_peaks();
         });
         this.views.update(
@@ -143,15 +147,19 @@ export class PeaksJSView extends DOMWidgetView {
                 this.model.get("zoomview"),
                 this.model.get("overview"),
                 this.model.get("play_button"),
+                this.model.get("save_button"),
                 this.model.get("audio")
-            ]).then(r => r);
+            ]).then(r => r.map(v => v.render()));
         const elementId = this.model.get("element_id");
         $(this.el).attr("id", elementId);
     }
 
     add_view(child_model: DOMWidgetModel, index: number) {
         return this.create_child_view(child_model, {parent: this})
-            .then(view => {view.render(); return view;})
+            .then(view => {
+                view.trigger("displayed");
+                return view;
+            })
             .catch(err => {
                 return err
             });
@@ -166,7 +174,7 @@ export class PeaksJSView extends DOMWidgetView {
                 .attr("id", "zoomview-" + elementId)
                 .attr("tabindex", "0")
                 .css({width: '100%', height: '200px', 'white-space': 'pre'});
-            if (that.model.get("as_container"))  $(that.el).append(that.zoomview);
+            if (that.model.get("as_container")) $(that.el).append(that.zoomview);
         });
     }
 
@@ -178,7 +186,7 @@ export class PeaksJSView extends DOMWidgetView {
                 .text("\n")
                 .attr("id", "overview-" + elementId)
                 .css({width: '100%', height: '15px', 'white-space': 'pre'});
-            if (that.model.get("as_container"))  $(that.el).append(that.overview);
+            if (that.model.get("as_container")) $(that.el).append(that.overview);
         });
     }
 
@@ -194,7 +202,21 @@ export class PeaksJSView extends DOMWidgetView {
                     that.touch();
                     that.send({playing: !playing});
                 });
-            if (that.model.get("as_container"))  $((this.el)).append(this.playBtn);
+            if (that.model.get("as_container")) $((this.el))
+                .append(this.playBtn);
+        })
+    }
+
+    init_save_button() {
+        const that = this;
+        this.views.views[3].then(v => {
+            $(that.el).append($(v.el).on("click", function () {
+                const link = document.createElement('a');
+                link.href = that.audio.src;
+                link.setAttribute('download', `${that.model.get("element_id")}.mp3`); //or any other extension
+                document.body.appendChild(link);
+                link.click();
+            }));
         })
     }
 
@@ -202,8 +224,9 @@ export class PeaksJSView extends DOMWidgetView {
         const that = this;
         const audioContext = new AudioContext();
         const segments = this.model.get("segments");
+        const points = this.model.get("points");
         Promise.all(this.views.views).then(v => {
-            const a = v[3];
+            const a = v[4];
             const audioElement = a.el as HTMLMediaElement;
             const zoomview = v[0].el;
             const overview = v[1].el;
@@ -238,6 +261,7 @@ export class PeaksJSView extends DOMWidgetView {
                 // Keyboard nudge increment in seconds (left arrow/right arrow)
                 nudgeIncrement: 1.,
                 segments: segments,
+                points: points,
                 // @ts-ignore
                 createSegmentMarker: newSegmentMarker,
             };
@@ -252,13 +276,15 @@ export class PeaksJSView extends DOMWidgetView {
                 /*
                 * alt + click: add segment
                 * alt + SHIFT + click: remove segment
-                * Ctrl + click: edit segment's label
+                * Ctrl + alt + click: edit segment's label
+                * Ctrl + click: add point
+                * Ctrl + SHIFT + click: remove point
                 * Ctrl + wheel: zoom
                 * Ctr + dbl-click: reset zoom
                 * SHIFT + wheel: scroll wvaveform
                 * */
                 peaks.on("zoomview.click", (event) => {
-                    if (event.evt.altKey && !event.evt.shiftKey) {
+                    if (event.evt.altKey && !event.evt.shiftKey && !event.evt.ctrlKey) {
                         const newSegment = {
                             startTime: event.time,
                             endTime: event.time + .1,
@@ -271,10 +297,15 @@ export class PeaksJSView extends DOMWidgetView {
                         that.model.set("id_count", newSegment.id + 1);
                         that.touch();
                         that.send({newSegment: newSegment});
+                    } else if (event.evt.ctrlKey && !event.evt.altKey && !event.evt.shiftKey) {
+                        const newPoint = {
+                            time: event.time
+                        };
+                        peaks.points.add(newPoint);
+                        that.send({newPoint: newPoint});
                     }
                 });
                 peaks.on("segments.click", (event) => {
-                    console.log("segment-click", event);
 
                     if (event.evt.altKey && event.evt.shiftKey) {
                         peaks.segments.removeById(<string>event.segment.id);
@@ -288,7 +319,7 @@ export class PeaksJSView extends DOMWidgetView {
                             }
                         })
 
-                    } else if (event.evt.ctrlKey) {
+                    } else if (event.evt.ctrlKey && event.evt.altKey) {
                         const i = prompt("Enter cluster index", "0") as string;
                         event.segment.update({labelText: i});
                         that.send({
@@ -327,7 +358,6 @@ export class PeaksJSView extends DOMWidgetView {
                     });
                 });
                 peaks.on("player.seeked", (event) => {
-                    console.log("player-seeked", event)
                 });
 
                 zoomview.addEventListener("keydown", (e) => {
@@ -367,10 +397,10 @@ export class PeaksJSView extends DOMWidgetView {
                                 Math.max(newDuration, 0.356))
                         });
                         event.preventDefault();
-                    that.send({
-                        // @ts-ignore
-                        updateZoomView: {startTime: zoomview.getStartTime(), endTime: zoomview.getEndTime()}
-                    })
+                        that.send({
+                            // @ts-ignore
+                            updateZoomView: {startTime: zoomview.getStartTime(), endTime: zoomview.getEndTime()}
+                        })
                     }
                 });
                 zoomview.addEventListener("dblclick", (event) => {
@@ -389,15 +419,20 @@ export class PeaksJSView extends DOMWidgetView {
         this.peaks.segments.removeAll();
         this.peaks.segments.add(segments);
     }
+    points_changed() {
+        let points = this.model.get("points");
+        this.peaks.points.removeAll();
+        this.peaks.points.add(points);
+    }
 
     toggle_playing() {
         const playing = this.model.get("playing");
         if (playing) {
             this.peaks.player.play();
-            this.playBtn.removeClass("fa-play").addClass("fa-pause");
+            this.playBtn.children("i").removeClass("fa-play").addClass("fa-pause");
         } else {
             this.peaks.player.pause();
-            this.playBtn.removeClass("fa-pause").addClass("fa-play");
+            this.playBtn.children("i").removeClass("fa-pause").addClass("fa-play");
         }
     }
 }

@@ -8,7 +8,7 @@
 TODO: Add module docstring
 """
 
-from ipywidgets import DOMWidget, HTML, widget_serialization, Audio, CallbackDispatcher, register, Button
+from ipywidgets import DOMWidget, HTML, widget_serialization, Audio, CallbackDispatcher, register, Button, HBox
 from ipywidgets.widgets.trait_types import InstanceDict
 from traitlets import Unicode, Int, Dict, List, Bool, Instance
 from ._frontend import module_name, module_version
@@ -40,11 +40,13 @@ class PeaksJSWidget(DOMWidget):
     _view_module_version = Unicode(module_version).tag(sync=True)
     element_id = Unicode().tag(sync=True)
     segments = List(Dict()).tag(sync=True)
+    points = List(Dict()).tag(sync=True)
     playing = Bool().tag(sync=True)
     id_count = Int().tag(sync=True)
     zoomview = InstanceDict(DOMWidget).tag(sync=True, **widget_serialization)
     overview = InstanceDict(DOMWidget).tag(sync=True, **widget_serialization)
     play_button = InstanceDict(DOMWidget).tag(sync=True, **widget_serialization)
+    save_button = InstanceDict(DOMWidget).tag(sync=True, **widget_serialization)
     audio = Instance(Audio).tag(sync=True, **widget_serialization)
     as_container = Bool().tag(sync=True)
 
@@ -61,8 +63,10 @@ class PeaksJSWidget(DOMWidget):
                  zoomview=None,
                  overview=None,
                  play_button=None,
+                 save_button=None,
                  id_count=0,
                  segments=None,
+                 points=None,
                  as_container=True
                  ):
         if value is None:
@@ -79,23 +83,26 @@ class PeaksJSWidget(DOMWidget):
             audio = Audio(value=value, format=format, autoplay=autoplay, loop=loop,
                           controls=controls)
         if zoomview is None:
-            zoomview = HTML(value="<div></div>")
+            zoomview = HBox(layout=dict(height="300px", width='100%'))
         if overview is None:
-            overview = HTML(value="<div></div>")
+            overview = HBox(layout=dict(height="30px", width='100%'))
         if play_button is None:
-            play_button = HTML("""
-            <i class='fa fa-play'
-               style="margin='8px auto'; width=100%; height=30px"></i>""")
+            play_button = Button(icon="fa-play", layout=dict(width="100%", height="30px"))
+        if save_button is None:
+            save_button = Button(icon="fa-download", layout=dict(width="100%", height="30px"))
         if segments is None:
             segments = []
-
+        if points is None:
+            points = []
         super().__init__(element_id=element_id if element_id is not None else '',
                          id_count=id_count,
                          segments=segments,
+                         points=points,
                          playing=False,
                          zoomview=zoomview,
                          overview=overview,
                          play_button=play_button,
+                         save_button=save_button,
                          audio=audio,
                          as_container=as_container
                          )
