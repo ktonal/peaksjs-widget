@@ -67,7 +67,8 @@ class PeaksJSWidget(DOMWidget):
                  id_count=0,
                  segments=None,
                  points=None,
-                 as_container=True
+                 as_container=True,
+                 **kwargs
                  ):
         if value is None:
             if array is not None and sr is not None:
@@ -104,7 +105,8 @@ class PeaksJSWidget(DOMWidget):
                          play_button=play_button,
                          save_button=save_button,
                          audio=audio,
-                         as_container=as_container
+                         as_container=as_container,
+                         **kwargs
                          )
         self.audio = audio
         self._add_segment_cb = CallbackDispatcher()
