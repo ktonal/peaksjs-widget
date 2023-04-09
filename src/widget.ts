@@ -299,10 +299,12 @@ export class PeaksJSView extends DOMWidgetView {
                         that.send({newSegment: newSegment});
                     } else if (event.evt.ctrlKey && !event.evt.altKey && !event.evt.shiftKey) {
                         const newPoint = {
-                            time: event.time
+                            time: event.time,
+                            color: "#ff640e",
+                            editable: true
                         };
-                        peaks.points.add(newPoint);
-                        that.send({newPoint: newPoint});
+                        const {id} = peaks.points.add(newPoint);
+                        that.send({newPoint: {...newPoint, id: id}});
                     }
                 });
                 peaks.on("segments.click", (event) => {
@@ -317,10 +319,11 @@ export class PeaksJSView extends DOMWidgetView {
                                 color: event.segment.color,
                                 labelText: event.segment.labelText
                             }
-                        })
+                        });
+                        event.evt.preventDefault();
 
                     } else if (event.evt.ctrlKey && event.evt.altKey) {
-                        const i = prompt("Enter cluster index", "0") as string;
+                        const i = prompt("Enter segment label", "0") as string;
                         event.segment.update({labelText: i});
                         that.send({
                             editSegment: {
@@ -356,6 +359,42 @@ export class PeaksJSView extends DOMWidgetView {
                             editable: true
                         }
                     });
+                });
+                peaks.on("points.dragend", (event) => {
+                    that.send({
+                        editPoint: {
+                            time: event.point.time,
+                            id: event.point.id,
+                            color: event.point.color,
+                            labelText: event.point.labelText,
+                            editable: true
+                        }
+                    });
+                });
+                peaks.on("points.click", (event) => {
+                    if (event.evt.ctrlKey && !event.evt.altKey && event.evt.shiftKey){
+                        that.send({
+                            removePoint: {
+                                time: event.point.time,
+                                id: event.point.id,
+                                color: event.point.color,
+                                labelText: event.point.labelText
+                            }
+                        });
+                        event.evt.preventDefault();
+                    } else if (event.evt.ctrlKey && event.evt.altKey) {
+                        const i = prompt("Enter point label", "0") as string;
+                        event.point.update({labelText: i});
+                        that.send({
+                            editPoint: {
+                                time: event.point.time,
+                                id: event.point.id,
+                                color: event.point.color,
+                                labelText: i,
+                                editable: true
+                            }
+                        })
+                    }
                 });
                 peaks.on("player.seeked", (event) => {
                 });
@@ -404,7 +443,7 @@ export class PeaksJSView extends DOMWidgetView {
                     }
                 });
                 zoomview.addEventListener("dblclick", (event) => {
-                    if (event.ctrlKey) {
+                    if (event.shiftKey) {
                         peaks.views.getView('zoomview')!.setZoom({seconds: peaks.player.getDuration()})
                     } else if (!event.altKey) {
                         that.playBtn.trigger("click");
@@ -419,6 +458,7 @@ export class PeaksJSView extends DOMWidgetView {
         this.peaks.segments.removeAll();
         this.peaks.segments.add(segments);
     }
+
     points_changed() {
         let points = this.model.get("points");
         this.peaks.points.removeAll();

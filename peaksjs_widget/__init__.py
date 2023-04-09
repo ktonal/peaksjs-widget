@@ -4,7 +4,7 @@
 # Copyright (c) AntoineDaurat.
 # Distributed under the terms of the Modified BSD License.
 
-from .widget import PeaksJSWidget
+from .widget import PeaksJSWidget, Segment, Point
 from ._version import __version__, version_info
 
 def _jupyter_labextension_paths():

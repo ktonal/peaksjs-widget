@@ -21,6 +21,30 @@ the nbextension:
 jupyter nbextension enable --py [--sys-prefix|--user|--system] peaksjs_widget
 ```
 
+## Shortcuts
+
+you can interact with the waveform/widgets with following shortcuts:
+
+- Navigation:
+    * `Ctrl + wheel`: zoom
+    * `SHIFT + dbl-click`: reset zoom
+    * `SHIFT + wheel`: scroll wvaveform
+    * `arrow left/right`: move playhead left/right
+    * `SHIFT + arrow left/right`: move playhead left/right a lot.
+- Controls:
+    * `dbl-click`: play from there
+    * `SPACE BAR`: play/pause 
+- Segments:
+    * `alt + click`: add segment
+    * `alt + SHIFT + click` on a segment: remove segment
+    * `Ctrl + alt + click` on a segment: edit segment's label
+- Points:
+    * `Ctrl + click`: add point
+    * `Ctrl + SHIFT + click` on a point: remove point
+    * `Ctrl + alt + click` on a point: edit point's label
+
+you can also drag points and segments' boundaries with the mouse to edit their position
+
 ## Development Installation
 
 Create a dev environment:
@@ -86,4 +110,5 @@ tbump <new-version>
 ```bash
 rm -rf dist/
 pyproject-build .
+twine upload dist/* -u k-tonal
 ```

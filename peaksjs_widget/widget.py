@@ -15,6 +15,38 @@ from ._frontend import module_name, module_version
 import pydub
 import numpy as np
 from io import BytesIO
+import dataclasses as dtc
+from typing import Optional
+
+
+@dtc.dataclass
+class Segment:
+    startTime: float
+    endTime: float
+    id: int
+    color: str = '#ff640e'
+    labelText: str = ""
+    editable: bool = True
+    duration: Optional[float] = None
+
+    def __post_init__(self):
+        if self.duration is None:
+            self.duration = self.endTime - self.startTime
+
+    def dict(self):
+        return dtc.asdict(self)
+
+
+@dtc.dataclass
+class Point:
+    time: float
+    editable: bool = True
+    color: str = "#ff640e"
+    labelText: str = ""
+    id: Optional[str] = None
+
+    def dict(self):
+        return dtc.asdict(self)
 
 
 def to_mp3_buffer(audio, sr):
@@ -112,7 +144,36 @@ class PeaksJSWidget(DOMWidget):
         self._add_segment_cb = CallbackDispatcher()
         self._edit_segment_cb = CallbackDispatcher()
         self._remove_segment_cb = CallbackDispatcher()
+        self._add_point_cb = CallbackDispatcher()
+        self._edit_point_cb = CallbackDispatcher()
+        self._remove_point_cb = CallbackDispatcher()
         self.on_msg(self._dispatch_msg)
+
+    def add_segment(self, seg):
+        new_seg = Segment(**seg).dict()
+        self.segments = [*self.segments, new_seg]
+        return self
+
+    def edit_segment(self, seg):
+        self.segments = [s if s["id"] != seg["id"] else Segment(**seg).dict() for s in self.segments]
+        return self
+
+    def remove_segment(self, seg):
+        self.segments = [*filter(lambda s: s["id"] != seg["id"], self.segments)]
+        return self
+
+    def add_point(self, point):
+        new_point = Point(**point).dict()
+        self.points = [*self.points, new_point]
+        return self
+
+    def edit_point(self, point):
+        self.points = [p if p["id"] != point["id"] else Point(**point).dict() for p in self.points]
+        return self
+
+    def remove_point(self, seg):
+        self.points = [*filter(lambda s: s["id"] != seg["id"], self.points)]
+        return self
 
     def _dispatch_msg(self, _, content, buffers):
         """Handle a msg from the front-end.
@@ -128,6 +189,12 @@ class PeaksJSWidget(DOMWidget):
             self._edit_segment_cb(self, content["editSegment"])
         if "removeSegment" in content:
             self._remove_segment_cb(self, content["removeSegment"])
+        if "newPoint" in content:
+            self._add_point_cb(self, content["newPoint"])
+        if "editPoint" in content:
+            self._edit_point_cb(self, content["editPoint"])
+        if "removePoint" in content:
+            self._remove_point_cb(self, content["removePoint"])
 
     def on_new_segment(self, func):
         self._add_segment_cb.register_callback(func, False)
@@ -139,3 +206,16 @@ class PeaksJSWidget(DOMWidget):
 
     def on_remove_segment(self, func):
         self._remove_segment_cb.register_callback(func, False)
+        return self
+
+    def on_new_point(self, func):
+        self._add_point_cb.register_callback(func, False)
+        return self
+
+    def on_edit_point(self, func):
+        self._edit_point_cb.register_callback(func, False)
+        return self
+
+    def on_remove_point(self, func):
+        self._remove_point_cb.register_callback(func, False)
+        return self
