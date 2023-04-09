@@ -36,7 +36,7 @@ dependencies = [
     "pydub",
     "numpy",
 ]
-version = "0.1.0.dev0"
+version = "0.0.4"
 
 [project.optional-dependencies]
 docs = [
@@ -96,19 +96,49 @@ path = "."
 build_cmd = "build:prod"
 
 [tool.tbump]
-field = [
-    { name = "channel", default = "" },
-    { name = "release", default = "" },
-]
-file = [
-    { src = "pyproject.toml", version_template = "version = \"{major}.{minor}.{patch}{channel}{release}\"" },
-    { src = "peaksjs_widget/_version.py" },
-]
+# Uncomment this if your project is hosted on GitHub:
+# github_url = "https://github.com/<user or organization>/<project>/"
+
+[[tool.tbump.file]]
+src = "pyproject.toml"
+version_template = "version = \"{major}.{minor}.{patch}\""
+
+[[tool.tbump.file]]
+src = "peaksjs_widget/_version.py"
+version_template = "version_info = ({major}, {minor}, {patch})"
 
 [tool.tbump.version]
-current = "0.1.0.dev0"
-regex = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)((?P<channel>a|b|rc|.dev)(?P<release>\\d+))?"
+current = "0.0.4"
+
+# Example of a semver regexp.
+# Make sure this matches current_version before
+# using tbump
+regex = '''
+  (?P<major>\d+)
+  \.
+  (?P<minor>\d+)
+  \.
+  (?P<patch>\d+)
+  '''
 
 [tool.tbump.git]
 message_template = "Bump to {new_version}"
 tag_template = "v{new_version}"
+
+# For each file to patch, add a [[tool.tbump.file]] config
+# section containing the path of the file, relative to the
+# tbump.toml location.
+
+# You can specify a list of commands to
+# run after the files have been patched
+# and before the git commit is made
+
+#  [[tool.tbump.before_commit]]
+#  name = "check changelog"
+#  cmd = "grep -q {new_version} Changelog.rst"
+
+# Or run some commands after the git tag and the branch
+# have been pushed:
+#  [[tool.tbump.after_push]]
+#  name = "publish"
+#  cmd = "./publish.sh"

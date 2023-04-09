@@ -53,7 +53,8 @@
     "@jupyter-widgets/controls": "^5",
     "underscore": "^1.13.6",
     "konva": "^8.3.10",
-    "peaks.js": "^2.0.2"
+    "peaks.js": "^2.0.2",
+    "waveform-data": ">= 4.3.0 < 5"
   },
   "devDependencies": {
     "@babel/core": "^7.5.0",

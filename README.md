@@ -81,3 +81,9 @@ pip install tbump
 tbump <new-version>
 ```
 
+## Publish the package
+
+```bash
+rm -rf dist/
+pyproject-build .
+```
