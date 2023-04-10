@@ -8,15 +8,16 @@
 TODO: Add module docstring
 """
 
-from ipywidgets import DOMWidget, HTML, widget_serialization, Audio, CallbackDispatcher, register, Button, HBox
+from ipywidgets import DOMWidget, HTML, widget_serialization, Audio, CallbackDispatcher, register, Button, HBox, \
+    Widget
 from ipywidgets.widgets.trait_types import InstanceDict
-from traitlets import Unicode, Int, Dict, List, Bool, Instance
+from traitlets import Unicode, Int, Dict, List as ListType, Bool, Instance
 from ._frontend import module_name, module_version
 import pydub
 import numpy as np
 from io import BytesIO
 import dataclasses as dtc
-from typing import Optional
+from typing import Optional, Union, List
 
 
 @dtc.dataclass
@@ -49,7 +50,7 @@ class Point:
         return dtc.asdict(self)
 
 
-def to_mp3_buffer(audio, sr):
+def to_mp3_buffer(audio: np.ndarray, sr: int) -> bytes:
     audio = audio / np.abs(audio).max()
     y = np.int16(audio * 2 ** 15)
     segment = pydub.AudioSegment(y.tobytes(),
@@ -71,8 +72,8 @@ class PeaksJSWidget(DOMWidget):
     _view_module = Unicode(module_name).tag(sync=True)
     _view_module_version = Unicode(module_version).tag(sync=True)
     element_id = Unicode().tag(sync=True)
-    segments = List(Dict()).tag(sync=True)
-    points = List(Dict()).tag(sync=True)
+    segments = ListType(Dict()).tag(sync=True)
+    points = ListType(Dict()).tag(sync=True)
     playing = Bool().tag(sync=True)
     id_count = Int().tag(sync=True)
     zoomview = InstanceDict(DOMWidget).tag(sync=True, **widget_serialization)
@@ -83,50 +84,70 @@ class PeaksJSWidget(DOMWidget):
     as_container = Bool().tag(sync=True)
 
     def __init__(self,
-                 value=None,
-                 array=None,
-                 sr=None,
-                 filename=None,
-                 format=None,
-                 autoplay=False,
-                 loop=False,
-                 controls=False,
-                 element_id=None,
-                 zoomview=None,
-                 overview=None,
-                 play_button=None,
-                 save_button=None,
-                 id_count=0,
-                 segments=None,
-                 points=None,
-                 as_container=True,
+                 value: Optional[bytes] = None,
+                 array: Optional[np.ndarray] = None,
+                 sr: Optional[int] = None,
+                 filename: Optional[str] = None,
+                 format: Optional[str] = None,
+                 autoplay: bool = False,
+                 loop: bool = False,
+                 controls: bool = False,
+                 element_id: Optional[str] = None,
+                 zoomview_height: Optional[str] = None,
+                 zoomview_width: Optional[str] = None,
+                 overview_height: Optional[str] = None,
+                 overview_width: Optional[str] = None,
+                 zoomview: Optional[Union[Widget, DOMWidget]] = None,
+                 overview: Optional[Union[Widget, DOMWidget]] = None,
+                 with_play_button: bool = False,
+                 with_save_button: bool = False,
+                 id_count: int = 0,
+                 segments: Optional[List[Segment]] = None,
+                 points: Optional[List[Point]] = None,
+                 as_container: bool = True,
                  **kwargs
                  ):
         if value is None:
             if array is not None and sr is not None:
                 value = to_mp3_buffer(array, sr)
-                audio = Audio(value=value, format="mp3", autoplay=False,
-                              loop=False, controls=False)
+                audio = Audio(value=value, format="mp3", autoplay=autoplay,
+                              loop=loop, controls=controls)
             elif filename is not None and format is not None:
                 audio = Audio(filename=filename, format=format, autoplay=autoplay,
                               loop=loop, controls=controls)
             else:
-                raise ValueError("either 'array' and 'sr', or 'filename' and 'format' should be both not None.")
+                raise ValueError("either 'array' and 'sr', or 'filename' and 'format' should both be not None.")
         else:
             audio = Audio(value=value, format=format, autoplay=autoplay, loop=loop,
                           controls=controls)
         if zoomview is None:
-            zoomview = HBox(layout=dict(height="300px", width='100%'))
+            if zoomview_height is None:
+                zoomview_height = "200px"
+            if zoomview_width is None:
+                zoomview_width = "100%"
+            zoomview = HBox(layout=dict(height=zoomview_height, width=zoomview_width))
         if overview is None:
-            overview = HBox(layout=dict(height="30px", width='100%'))
-        if play_button is None:
+            if overview_height is None:
+                overview_height = "30px"
+            if overview_width is None:
+                overview_width = "100%"
+            overview = HBox(layout=dict(height=overview_height, width=overview_width))
+        if with_play_button:
             play_button = Button(icon="fa-play", layout=dict(width="100%", height="30px"))
-        if save_button is None:
+        else:
+            play_button = HTML("<span></span>")
+        if with_save_button:
             save_button = Button(icon="fa-download", layout=dict(width="100%", height="30px"))
+        else:
+            save_button = HTML("<span></span>")
         if segments is None:
             segments = []
+        else:
+            segments = [s.dict() for s in segments]
         if points is None:
             points = []
+        else:
+            points = [p.dict() for p in points]
         super().__init__(element_id=element_id if element_id is not None else '',
                          id_count=id_count,
                          segments=segments,
