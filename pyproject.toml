@@ -83,10 +83,6 @@ ensured-targets = [
     "peaksjs_widget/nbextension/index.js",
     "peaksjs_widget/labextension/package.json",
 ]
-skip-if-exists = [
-    "peaksjs_widget/nbextension/index.js",
-    "peaksjs_widget/labextension/package.json",
-]
 dependencies = [
     "hatch-jupyter-builder>=0.5.0",
 ]
@@ -125,20 +121,3 @@ regex = '''
 message_template = "Bump to {new_version}"
 tag_template = "v{new_version}"
 
-# For each file to patch, add a [[tool.tbump.file]] config
-# section containing the path of the file, relative to the
-# tbump.toml location.
-
-# You can specify a list of commands to
-# run after the files have been patched
-# and before the git commit is made
-
-#  [[tool.tbump.before_commit]]
-#  name = "check changelog"
-#  cmd = "grep -q {new_version} Changelog.rst"
-
-# Or run some commands after the git tag and the branch
-# have been pushed:
-#  [[tool.tbump.after_push]]
-#  name = "publish"
-#  cmd = "./publish.sh"
