@@ -4,8 +4,9 @@
 [![Build Status](https://travis-ci.org/ktonal/peaksjs-widget.svg?branch=master)](https://travis-ci.org/ktonal/peaksjs_widget)
 [![codecov](https://codecov.io/gh/ktonal/peaksjs-widget/branch/master/graph/badge.svg)](https://codecov.io/gh/ktonal/peaksjs-widget)
 
-
 ipywidget to interact with audio waveforms through peaks.js
+
+![preview](widget-review.png)
 
 ## Installation
 
