@@ -12,13 +12,13 @@ ipywidget to interact with audio waveforms through peaks.js
 
 You can install using `pip`:
 
-```bash
+```shell script
 pip install peaksjs_widget
 ```
 
 If you are using Jupyter Notebook 5.2 or earlier, you may also need to enable
 the nbextension:
-```bash
+```shell script
 jupyter nbextension enable --py [--sys-prefix|--user|--system] peaksjs_widget
 ```
 
@@ -49,13 +49,13 @@ you can also drag points and segments' boundaries with the mouse to edit their p
 ## Development Installation
 
 Create a dev environment:
-```bash
+```shell script
 conda create -n peaksjs_widget-dev -c conda-forge nodejs yarn python jupyterlab
 conda activate peaksjs_widget-dev
 ```
 
 Install the python. This will also build the TS package.
-```bash
+```shell script
 pip install -e ".[test, examples]"
 ```
 
@@ -84,7 +84,7 @@ of those flags here.
 If you use JupyterLab to develop then you can watch the source directory and run JupyterLab at the same time in different
 terminals to watch for changes in the extension's source and automatically rebuild the widget.
 
-```bash
+```shell script
 # Watch the source directory in one terminal, automatically rebuilding when needed
 yarn run watch
 # Run JupyterLab in another terminal
@@ -101,15 +101,20 @@ If you make a change to the python code then you will need to restart the notebo
 To update the version, install tbump and use it to bump the version.
 By default it will also create a tag.
 
-```bash
+```shell script
 pip install tbump
 tbump <new-version>
 ```
 
 ## Publish the package
-
-```bash
+on npm
+````shell script
+npm login 
+npm publish
+````
+on pypi
+```shell script
 rm -rf dist/
 pyproject-build .
-twine upload dist/* -u k-tonal
+twine upload dist/peaksjs* -u k-tonal
 ```

@@ -61,7 +61,7 @@ Homepage = "https://github.com/ktonal/peaksjs-widget"
 
 [tool.hatch.build]
 artifacts = [
-#    "peaksjs_widget/nbextension/index.*",
+    "peaksjs_widget/nbextension/index.*",
     "peaksjs_widget/labextension/*.tgz",
     "peaksjs_widget/labextension",
 ]
