@@ -36,7 +36,7 @@ dependencies = [
     "pydub",
     "numpy",
 ]
-version = "0.1.0"
+version = "0.1.1"
 
 [project.optional-dependencies]
 docs = [
@@ -104,7 +104,7 @@ src = "peaksjs_widget/_version.py"
 version_template = "version_info = ({major}, {minor}, {patch})"
 
 [tool.tbump.version]
-current = "0.1.0"
+current = "0.1.1"
 
 # Example of a semver regexp.
 # Make sure this matches current_version before
