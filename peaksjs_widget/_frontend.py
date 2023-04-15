@@ -9,4 +9,4 @@ Information about the frontend package of the widgets.
 """
 
 module_name = "peaksjs-widget"
-module_version = "^0.1.1"
+module_version = "^0.0.0"
