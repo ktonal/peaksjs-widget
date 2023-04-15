@@ -3,6 +3,7 @@
 
 import {MODULE_NAME, MODULE_VERSION} from './version';
 
+import $ from "jquery";
 // Import the CSS
 import '../css/widget.css';
 import {
