@@ -1,6 +1,6 @@
 {
   "name": "peaksjs-widget",
-  "version": "0.1.2",
+  "version": "0.1.1",
   "description": "ipywidget to interact with audio waveforms through peaks.js",
   "keywords": [
     "jupyter",
@@ -54,7 +54,8 @@
     "konva": "^8.3.10",
     "peaks.js": "^2.0.2",
     "underscore": "^1.13.6",
-    "waveform-data": ">= 4.3.0 < 5"
+    "waveform-data": ">= 4.3.0 < 5",
+    "jquery": "^3.6.4"
   },
   "devDependencies": {
     "@babel/core": "^7.5.0",

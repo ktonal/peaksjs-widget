@@ -103,6 +103,14 @@ version_template = "version = \"{major}.{minor}.{patch}\""
 src = "peaksjs_widget/_version.py"
 version_template = "version_info = ({major}, {minor}, {patch})"
 
+[[tool.tbump.file]]
+src = "peaksjs_widget/_frontend.py"
+version_template = "module_version = \"^{major}.{minor}.{patch}\""
+
+[[tool.tbump.file]]
+src = "package.json"
+version_template = "\"version\": \"{major}.{minor}.{patch}\","
+
 [tool.tbump.version]
 current = "0.1.1"
 
