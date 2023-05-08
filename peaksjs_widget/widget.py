@@ -50,7 +50,7 @@ class Point:
         return dtc.asdict(self)
 
 
-def to_mp3_buffer(audio: np.ndarray, sr: int) -> bytes:
+def to_mp3_buffer(audio: np.ndarray, sr: int, format: str = "mp3") -> bytes:
     audio = audio / np.abs(audio).max()
     y = np.int16(audio * 2 ** 15)
     segment = pydub.AudioSegment(y.tobytes(),
@@ -58,7 +58,7 @@ def to_mp3_buffer(audio: np.ndarray, sr: int) -> bytes:
                                  sample_width=2,
                                  channels=1)
     with BytesIO() as f:
-        segment.export(f, format="mp3", bitrate="320k")
+        segment.export(f, format=format, bitrate="320k")
         buffer = f.getvalue()
     return buffer
 
@@ -76,12 +76,14 @@ class PeaksJSWidget(DOMWidget):
     points = ListType(Dict()).tag(sync=True)
     playing = Bool().tag(sync=True)
     id_count = Int().tag(sync=True)
+    sample_rate = Int().tag(sync=True)
     zoomview = InstanceDict(DOMWidget).tag(sync=True, **widget_serialization)
     overview = InstanceDict(DOMWidget).tag(sync=True, **widget_serialization)
     play_button = InstanceDict(DOMWidget).tag(sync=True, **widget_serialization)
     save_button = InstanceDict(DOMWidget).tag(sync=True, **widget_serialization)
     audio = Instance(Audio).tag(sync=True, **widget_serialization)
     as_container = Bool().tag(sync=True)
+    min_samples_per_pixel = Int().tag(sync=True)
 
     def __init__(self,
                  value: Optional[bytes] = None,
@@ -105,16 +107,17 @@ class PeaksJSWidget(DOMWidget):
                  segments: Optional[List[Segment]] = None,
                  points: Optional[List[Point]] = None,
                  as_container: bool = True,
+                 min_samples_per_pixel: int = 5,
                  **kwargs
                  ):
         if value is None:
             if array is not None and sr is not None:
-                value = to_mp3_buffer(array, sr)
-                audio = Audio(value=value, format="mp3", autoplay=autoplay,
+                value = to_mp3_buffer(array, sr, format="mp3" if format is None else format)
+                audio = Audio(value=value, format="mp3" if format is None else format, autoplay=autoplay,
                               loop=loop, controls=controls)
             elif filename is not None and format is not None:
-                audio = Audio(filename=filename, format=format, autoplay=autoplay,
-                              loop=loop, controls=controls)
+                audio = Audio.from_file(filename, format=format, autoplay=autoplay,
+                                        loop=loop, controls=controls)
             else:
                 raise ValueError("either 'array' and 'sr', or 'filename' and 'format' should both be not None.")
         else:
@@ -150,6 +153,7 @@ class PeaksJSWidget(DOMWidget):
             points = [p.dict() for p in points]
         super().__init__(element_id=element_id if element_id is not None else '',
                          id_count=id_count,
+                         sample_rate=sr if sr is not None else 44100,
                          segments=segments,
                          points=points,
                          playing=False,
@@ -159,6 +163,7 @@ class PeaksJSWidget(DOMWidget):
                          save_button=save_button,
                          audio=audio,
                          as_container=as_container,
+                         min_samples_per_pixel=min_samples_per_pixel,
                          **kwargs
                          )
         self.audio = audio

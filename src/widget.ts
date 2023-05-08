@@ -15,6 +15,7 @@ import {
 } from "@jupyter-widgets/base";
 import Peaks, {PeaksOptions, PeaksInstance, CreateSegmentMarkerOptions} from 'peaks.js';
 import Konva from "konva";
+import {cacheResampledData, zoom} from "./zoom.utils";
 
 class CustomSegmentMarker {
     protected _options: CreateSegmentMarkerOptions;
@@ -223,23 +224,29 @@ export class PeaksJSView extends DOMWidgetView {
 
     init_peaks() {
         const that = this;
-        const audioContext = new AudioContext();
         const segments = this.model.get("segments");
         const points = this.model.get("points");
+        const sampleRate = this.model.get("sample_rate");
         Promise.all(this.views.views).then(v => {
             const a = v[4];
-            const audioElement = a.el as HTMLMediaElement;
+            const audioElement = a.el as HTMLAudioElement;
+            audioElement.preload="metadata";
+            audioElement.onloadedmetadata = (ev) => {
+            const audioContext = new AudioContext({sampleRate: sampleRate});
             const zoomview = v[0].el;
             const overview = v[1].el;
+            let minScale = that.model.get("min_samples_per_pixel");
             $(that.el).append(audioElement);
             that.audio = audioElement;
-            // @ts-ignore
             const options: PeaksOptions = {
+                waveformCache: true,
                 zoomview: {
                     container: zoomview,
                     waveformColor: 'rgba(0,100,255,0.95)',
                     playheadColor: '#000000',
-                    wheelMode: "scroll"
+                    wheelMode: "scroll",
+                    timeLabelPrecision: 4,
+                    showPlayheadTime: true,
                 },
                 overview: {
                     container: overview,
@@ -249,11 +256,11 @@ export class PeaksJSView extends DOMWidgetView {
                     //                 highlightColor: "rgba(64,94,103,0.51)",
                     highlightOffset: 0,
                 },
-                zoomLevels: [16],
+                zoomLevels: [minScale, minScale*2, minScale*3, minScale*4, minScale*6, minScale*10],
                 mediaElement: audioElement,
                 webAudio: {
                     audioContext: audioContext,
-                    scale: 16,
+                    scale: minScale,
                     multiChannel: false
                 },
                 // Bind keyboard controls
@@ -266,24 +273,29 @@ export class PeaksJSView extends DOMWidgetView {
                 // @ts-ignore
                 createSegmentMarker: newSegmentMarker,
             };
-            Peaks.init(options, function (err, peaks) {
+            Peaks.init(options, async function (err, peaks) {
                 if (err || peaks === undefined || peaks === null) {
                     console.error('Failed to initialize Peaks instance: ' + err.message);
                     return;
                 }
                 that.peaks = peaks;
                 const peaksZoomView = peaks.views.getView('zoomview')!;
+                // console.log(peaksZoomView);
                 peaksZoomView.setZoom({seconds: Math.min(audioElement.duration, 180.)});
-                /*
-                * alt + click: add segment
-                * alt + SHIFT + click: remove segment
-                * Ctrl + alt + click: edit segment's label
-                * Ctrl + click: add point
-                * Ctrl + SHIFT + click: remove point
-                * Ctrl + wheel: zoom
-                * Ctr + dbl-click: reset zoom
-                * SHIFT + wheel: scroll wvaveform
-                * */
+                peaks.on("zoomview.contextmenu", (event) => {
+                    event.evt.preventDefault();
+                    event.evt.stopImmediatePropagation();
+                    event.evt.stopPropagation();
+                    if (event.evt.ctrlKey && !event.evt.altKey && !event.evt.shiftKey) {
+                        const newPoint = {
+                            time: event.time,
+                            color: "#ff640e",
+                            editable: true
+                        };
+                        const {id} = peaks.points.add(newPoint);
+                        that.send({newPoint: {...newPoint, id: id}});
+                    }
+                });
                 peaks.on("zoomview.click", (event) => {
                     if (event.evt.altKey && !event.evt.shiftKey && !event.evt.ctrlKey) {
                         const newSegment = {
@@ -298,19 +310,13 @@ export class PeaksJSView extends DOMWidgetView {
                         that.model.set("id_count", newSegment.id + 1);
                         that.touch();
                         that.send({newSegment: newSegment});
-                    } else if (event.evt.ctrlKey && !event.evt.altKey && !event.evt.shiftKey) {
-                        const newPoint = {
-                            time: event.time,
-                            color: "#ff640e",
-                            editable: true
-                        };
-                        const {id} = peaks.points.add(newPoint);
-                        that.send({newPoint: {...newPoint, id: id}});
                     }
                 });
                 peaks.on("segments.click", (event) => {
-
-                    if (event.evt.altKey && event.evt.shiftKey) {
+                    event.evt.preventDefault();
+                    event.evt.stopImmediatePropagation();
+                    event.evt.stopPropagation();
+                    if (event.evt.shiftKey) {
                         peaks.segments.removeById(<string>event.segment.id);
                         that.send({
                             removeSegment: {
@@ -373,7 +379,10 @@ export class PeaksJSView extends DOMWidgetView {
                     });
                 });
                 peaks.on("points.click", (event) => {
-                    if (event.evt.ctrlKey && !event.evt.altKey && event.evt.shiftKey){
+                    event.evt.preventDefault();
+                    event.evt.stopImmediatePropagation();
+                    event.evt.stopPropagation();
+                    if (event.evt.shiftKey) {
                         that.send({
                             removePoint: {
                                 time: event.point.time,
@@ -420,37 +429,31 @@ export class PeaksJSView extends DOMWidgetView {
                         }
                     }
                 });
-
                 zoomview.addEventListener("wheel", (event) => {
                     const zoomview = peaks.views.getView('zoomview');
                     if (!zoomview) return;
-
                     if (event.ctrlKey) {
-                        // @ts-ignore
-                        const startTime = zoomview.getStartTime();
-                        // @ts-ignore
-                        const endTime = zoomview.getEndTime();
-                        // @ts-ignore
-                        const newDuration = (endTime - startTime) * (event.wheelDelta > 0 ? 1.1 : .9);
-                        zoomview.setZoom({
-                            seconds: Math.min(audioElement.duration,
-                                Math.max(newDuration, 0.356))
-                        });
                         event.preventDefault();
+                        event.stopPropagation();
+                        event.stopImmediatePropagation();
+                        zoom(peaks, zoomview, event, minScale, 5);
                         that.send({
                             // @ts-ignore
                             updateZoomView: {startTime: zoomview.getStartTime(), endTime: zoomview.getEndTime()}
-                        })
+                        });
                     }
                 });
                 zoomview.addEventListener("dblclick", (event) => {
                     if (event.shiftKey) {
-                        peaks.views.getView('zoomview')!.setZoom({seconds: peaks.player.getDuration()})
+                        peaks.views.getView('zoomview')!.setZoom({seconds: Math.min(peaks.player.getDuration(), 180.)})
                     } else if (!event.altKey) {
                         that.playBtn.trigger("click");
                     }
-                })
-            });
+                });
+                peaks.once("peaks.ready", async () => {
+                   await cacheResampledData(peaksZoomView, 50, 5, minScale);
+                });
+            })};
         })
     }
 

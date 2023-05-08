@@ -1,9 +1,6 @@
 
 # peaksjs-widget
 
-[![Build Status](https://travis-ci.org/ktonal/peaksjs-widget.svg?branch=master)](https://travis-ci.org/ktonal/peaksjs_widget)
-[![codecov](https://codecov.io/gh/ktonal/peaksjs-widget/branch/master/graph/badge.svg)](https://codecov.io/gh/ktonal/peaksjs-widget)
-
 ipywidget to interact with audio waveforms through peaks.js
 
 ![preview](widget-review.png)
@@ -29,7 +26,7 @@ you can interact with the waveform/widgets with following shortcuts:
 - Navigation:
     * `Ctrl + wheel`: zoom
     * `SHIFT + dbl-click`: reset zoom
-    * `SHIFT + wheel`: scroll wvaveform
+    * `SHIFT + wheel`: scroll waveform
     * `arrow left/right`: move playhead left/right
     * `SHIFT + arrow left/right`: move playhead left/right a lot.
 - Controls:
@@ -37,11 +34,11 @@ you can interact with the waveform/widgets with following shortcuts:
     * `SPACE BAR`: play/pause 
 - Segments:
     * `alt + click`: add segment
-    * `alt + SHIFT + click` on a segment: remove segment
+    * `SHIFT + click` on a segment: remove segment
     * `Ctrl + alt + click` on a segment: edit segment's label
 - Points:
     * `Ctrl + click`: add point
-    * `Ctrl + SHIFT + click` on a point: remove point
+    * `SHIFT + click` on a point: remove point
     * `Ctrl + alt + click` on a point: edit point's label
 
 you can also drag points and segments' boundaries with the mouse to edit their position
