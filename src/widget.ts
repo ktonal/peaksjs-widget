@@ -331,7 +331,7 @@ export class PeaksJSView extends DOMWidgetView {
 
                     } else if (event.evt.ctrlKey && event.evt.altKey) {
                         const i = prompt("Enter segment label", "0") as string;
-                        event.segment.update({labelText: i});
+                        event.segment.update({labelText: i, startTime: event.segment.startTime, endTime: event.segment.endTime});
                         that.send({
                             editSegment: {
                                 startTime: event.segment.startTime,
@@ -394,7 +394,7 @@ export class PeaksJSView extends DOMWidgetView {
                         event.evt.preventDefault();
                     } else if (event.evt.ctrlKey && event.evt.altKey) {
                         const i = prompt("Enter point label", "0") as string;
-                        event.point.update({labelText: i});
+                        event.point.update({labelText: i, time: event.point.time});
                         that.send({
                             editPoint: {
                                 time: event.point.time,
