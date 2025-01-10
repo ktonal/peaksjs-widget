@@ -1,6 +1,6 @@
 {
   "name": "peaksjs-widget",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "ipywidget to interact with audio waveforms through peaks.js",
   "keywords": [
     "jupyter",
