@@ -13,12 +13,6 @@ You can install using `pip`:
 pip install peaksjs_widget
 ```
 
-If you are using Jupyter Notebook 5.2 or earlier, you may also need to enable
-the nbextension:
-```shell script
-jupyter nbextension enable --py [--sys-prefix|--user|--system] peaksjs_widget
-```
-
 ## Shortcuts
 
 you can interact with the waveform/widgets with following shortcuts:
@@ -53,28 +47,16 @@ conda activate peaksjs_widget-dev
 
 Install the python. This will also build the TS package.
 ```shell script
-pip install -e ".[test, examples]"
+pip install -e ".[test]"
 ```
 
 When developing your extensions, you need to manually enable your extensions with the
-notebook / lab frontend. For lab, this is done by the command:
+lab frontend. This is done by the command:
 
-```
+```bash
 jupyter labextension develop --overwrite .
 yarn run build
 ```
-
-For classic notebook, you need to run:
-
-```
-jupyter nbextension install --sys-prefix --symlink --overwrite --py peaksjs_widget
-jupyter nbextension enable --sys-prefix --py peaksjs_widget
-```
-
-Note that the `--symlink` flag doesn't work on Windows, so you will here have to run
-the `install` command every time that you rebuild your extension. For certain installations
-you might also need another flag instead of `--sys-prefix`, but we won't cover the meaning
-of those flags here.
 
 ### How to see your changes
 #### Typescript:

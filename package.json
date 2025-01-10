@@ -29,24 +29,20 @@
     "url": "https://github.com/ktonal/peaksjs-widget"
   },
   "scripts": {
-    "build": "yarn run build:lib && yarn run build:nbextension && yarn run build:labextension:dev",
-    "build:prod": "yarn run build:lib && yarn run build:nbextension && yarn run build:labextension",
+    "build": "yarn run build:lib && yarn run build:labextension:dev",
+    "build:prod": "yarn run build:lib && yarn run build:labextension",
     "build:labextension": "jupyter labextension build .",
     "build:labextension:dev": "jupyter labextension build --development True .",
     "build:lib": "tsc",
-    "build:nbextension": "webpack",
-    "clean": "yarn run clean:lib && yarn run clean:nbextension && yarn run clean:labextension",
+    "clean": "yarn run clean:lib && yarn run clean:labextension",
     "clean:lib": "rimraf lib",
     "clean:labextension": "rimraf peaksjs_widget/labextension",
-    "clean:nbextension": "rimraf peaksjs_widget/nbextension/static/index.js",
     "lint": "eslint . --ext .ts,.tsx --fix",
     "lint:check": "eslint . --ext .ts,.tsx",
     "prepack": "yarn run build:lib",
     "test": "jest",
     "watch": "npm-run-all -p watch:*",
-    "watch:lib": "tsc -w",
-    "watch:nbextension": "webpack --watch --mode=development",
-    "watch:labextension": "jupyter labextension watch ."
+    "watch:lib": "tsc -w"
   },
   "dependencies": {
     "@jupyter-widgets/base": "^6",
@@ -61,7 +57,7 @@
     "@babel/core": "^7.5.0",
     "@babel/preset-env": "^7.5.0",
     "@jupyter-widgets/base-manager": "^1.0.2",
-    "@jupyterlab/builder": "^3.0.0",
+    "@jupyterlab/builder": "^4.2.5",
     "@lumino/application": "^1.6.0",
     "@lumino/widgets": "^1.6.0",
     "@types/jest": "^26.0.0",

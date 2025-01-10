@@ -1,7 +1,7 @@
 [build-system]
 requires = [
     "hatchling>=1.3.1",
-    "jupyterlab==3.*",
+    "jupyterlab==4.*"
 ]
 build-backend = "hatchling.build"
 
@@ -10,7 +10,7 @@ name = "peaksjs_widget"
 description = "ipywidget to interact with audio waveforms through peaks.js"
 readme = "README.md"
 license = { file = "LICENSE.txt" }
-requires-python = ">=3.7"
+requires-python = ">=3.10"
 authors = [
     { name = "AntoineDaurat", email = "ktonalberlin@gmail.com" },
 ]
@@ -32,24 +32,13 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
 ]
 dependencies = [
-    "ipywidgets>=7.0.0",
+    "ipywidgets>=8.1.0",
     "pydub",
     "numpy",
 ]
 version = "0.1.4"
 
 [project.optional-dependencies]
-docs = [
-    "jupyter_sphinx",
-    "nbsphinx",
-    "nbsphinx-link",
-    "pypandoc",
-    "pytest_check_links",
-    "recommonmark",
-    "sphinx>=1.5",
-    "sphinx_rtd_theme",
-]
-examples = []
 test = [
     "nbval",
     "pytest-cov",
@@ -61,13 +50,11 @@ Homepage = "https://github.com/ktonal/peaksjs-widget"
 
 [tool.hatch.build]
 artifacts = [
-    "peaksjs_widget/nbextension/index.*",
     "peaksjs_widget/labextension/*.tgz",
     "peaksjs_widget/labextension",
 ]
 
 [tool.hatch.build.targets.wheel.shared-data]
-"peaksjs_widget/nbextension" = "share/jupyter/nbextensions/peaksjs_widget"
 "peaksjs_widget/labextension" = "share/jupyter/labextensions/peaksjs_widget"
 "./install.json" = "share/jupyter/labextensions/peaksjs_widget/install.json"
 "./peaksjs_widget.json" = "etc/jupyter/nbconfig/notebook.d/peaksjs_widget.json"
@@ -80,7 +67,6 @@ exclude = [
 [tool.hatch.build.hooks.jupyter-builder]
 build-function = "hatch_jupyter_builder.npm_builder"
 ensured-targets = [
-    "peaksjs_widget/nbextension/index.js",
     "peaksjs_widget/labextension/package.json",
 ]
 dependencies = [
